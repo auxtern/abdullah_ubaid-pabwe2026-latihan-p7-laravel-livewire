@@ -88,6 +88,11 @@ pipeline {
                         --optimize-autoloader
 
                     echo "=== PHP Dependencies Installed ==="
+
+                    echo "=== Composer Audit (fail on vulnerabilities) ==="
+                    # Exit non-zero jika ada advisory → pipeline FAILURE
+                    composer audit --no-interaction
+                    echo "=== Composer Audit OK (no known vulnerabilities) ==="
                 '''
             }
         }
@@ -174,6 +179,73 @@ pipeline {
 
                     echo "=== Tests Passed ==="
                     ls -lh coverage.xml coverage.txt || true
+
+                    echo "=== Enforcing 100% Coverage (app/) ==="
+                    php -r '
+                        if (!is_file("coverage.xml")) {
+                            fwrite(STDERR, "coverage.xml tidak ditemukan. Coverage wajib dihasilkan." . PHP_EOL);
+                            exit(1);
+                        }
+
+                        $xml = @simplexml_load_file("coverage.xml");
+                        if ($xml === false) {
+                            fwrite(STDERR, "coverage.xml tidak dapat diparse." . PHP_EOL);
+                            exit(1);
+                        }
+
+                        $metrics = $xml->project->metrics ?? null;
+                        if ($metrics === null) {
+                            $nodes = $xml->xpath("//project/metrics");
+                            $metrics = $nodes[0] ?? null;
+                        }
+                        if ($metrics === null) {
+                            fwrite(STDERR, "Metrik coverage tidak ditemukan di coverage.xml." . PHP_EOL);
+                            exit(1);
+                        }
+
+                        // PHPUnit clover project metrics: statements/methods/elements
+                        // (tidak selalu ada coveredclasses — jangan dipakai sebagai gate)
+                        $statements = (int) $metrics["statements"];
+                        $coveredStatements = (int) $metrics["coveredstatements"];
+                        $methods = (int) $metrics["methods"];
+                        $coveredMethods = (int) $metrics["coveredmethods"];
+                        $elements = (int) $metrics["elements"];
+                        $coveredElements = (int) $metrics["coveredelements"];
+
+                        if ($statements <= 0) {
+                            fwrite(STDERR, "Tidak ada statement yang diukur (statements=0)." . PHP_EOL);
+                            exit(1);
+                        }
+
+                        $linePct = round(100 * $coveredStatements / $statements, 2);
+                        $methodPct = $methods > 0 ? round(100 * $coveredMethods / $methods, 2) : 100.0;
+                        $elementPct = $elements > 0 ? round(100 * $coveredElements / $elements, 2) : 100.0;
+
+                        echo "Coverage summary (source=app/):" . PHP_EOL;
+                        echo "  Lines/Statements : {$coveredStatements}/{$statements} ({$linePct}%)" . PHP_EOL;
+                        echo "  Methods          : {$coveredMethods}/{$methods} ({$methodPct}%)" . PHP_EOL;
+                        echo "  Elements         : {$coveredElements}/{$elements} ({$elementPct}%)" . PHP_EOL;
+
+                        $failed = false;
+                        if ($coveredStatements < $statements) {
+                            fwrite(STDERR, "FAIL: Line coverage harus 100%. Saat ini {$linePct}%." . PHP_EOL);
+                            $failed = true;
+                        }
+                        if ($methods > 0 && $coveredMethods < $methods) {
+                            fwrite(STDERR, "FAIL: Method coverage harus 100%. Saat ini {$methodPct}%." . PHP_EOL);
+                            $failed = true;
+                        }
+                        if ($elements > 0 && $coveredElements < $elements) {
+                            fwrite(STDERR, "FAIL: Element coverage harus 100%. Saat ini {$elementPct}%." . PHP_EOL);
+                            $failed = true;
+                        }
+
+                        if ($failed) {
+                            exit(1);
+                        }
+
+                        echo "OK: Coverage 100% (lines, methods, elements)." . PHP_EOL;
+                    '
                 '''
             }
 

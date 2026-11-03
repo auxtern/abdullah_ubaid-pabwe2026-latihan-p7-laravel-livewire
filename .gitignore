@@ -24,6 +24,10 @@
 /coverage-html
 /coverage.txt
 /coverage.xml
+/junit.xml
+/events.txt
+/todolist_notices.txt
+/phpunit_*.txt
 /trivy-results.sarif
 /.trivy-cache
 /latest-app.zip

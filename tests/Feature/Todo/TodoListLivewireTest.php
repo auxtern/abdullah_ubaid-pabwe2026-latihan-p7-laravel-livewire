@@ -216,7 +216,7 @@ class TodoListLivewireTest extends TestCase
         $this->actingAs($user);
 
         // Mock AiClientInterface
-        $mockAiClient = $this->createMock(AiClientInterface::class);
+        $mockAiClient = $this->createStub(AiClientInterface::class);
         $mockAiClient->method('generateTodos')->willReturn([
             new GeneratedTodoItem('AI Task 1', 'Desc 1', '2026-11-25'),
             new GeneratedTodoItem('AI Task 2', 'Desc 2', null),
@@ -259,7 +259,7 @@ class TodoListLivewireTest extends TestCase
         $user = User::factory()->member()->create();
         $this->actingAs($user);
 
-        $mockAiClient = $this->createMock(AiClientInterface::class);
+        $mockAiClient = $this->createStub(AiClientInterface::class);
         $mockAiClient->method('generateTodos')->willThrowException(new \RuntimeException('API quota exceeded'));
         $this->app->instance(AiClientInterface::class, $mockAiClient);
 
