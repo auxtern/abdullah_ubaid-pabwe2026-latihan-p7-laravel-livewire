@@ -23,6 +23,10 @@
 /vendor
 /coverage-html
 /coverage.txt
+/coverage.xml
+/trivy-results.sarif
+/.trivy-cache
+/latest-app.zip
 _ide_helper.php
 Homestead.json
 Homestead.yaml
